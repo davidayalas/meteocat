@@ -99,7 +99,7 @@ function meteo(){
   while(result.hasNext()) {
     db.remove(result.next());
   }    
-  db.save({id:1,timestmp:(new Date()).getTime(),data:output});
+  db.save({id:1,timestmp:(new Date()).getTime(),data:JSON.stringify(output)});
   return output;
 }
 
@@ -121,6 +121,7 @@ function getData(){
       var current = result.next();
       if((((new Date()).getTime()-(new Date(current.timestmp)).getTime())/1000)<=ttl){
         c=current.data;
+        cache.put("meteodata", c);
         Logger.log("from db");
       }else{
         c=meteo();
