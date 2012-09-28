@@ -1,0 +1,21 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset=utf-8>
+    <title>testing Google Apps Script meteocat</title>
+    <script>
+        function weather(results){
+            window.onload = function(){
+                var c = document.getElementsByTagName("body")[0]    
+                for(var i=0; i<results.length;i++){
+                    c.innerHTML += results[i].locality + ": " + results[i].tavg + " <sup>o</sup>C<br />";       
+                }
+            }
+        }
+    </script>
+    <script src="https://script.google.com/macros/s/AKfycbz0cyNYyZzQ9thMCAiiTauTtrP58nVymAm8KWx8hhfCZ--yLiA/exec?callback=weather"></script>
+</head>
+<body>
+
+</body>
+</html>
