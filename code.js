@@ -1,6 +1,37 @@
 var cache = CacheService.getPublicCache();
 var db = ScriptDb.getMyDb();
-var ttl = 1800; //same as cron
+var ttl = 900; //same as cron
+var geocoder = Maps.newGeocoder();
+var isGeocodeAvailable = true;
+/**
+ * Remove all from cache and db
+ *
+ */
+function removeCachedData(type){
+  var result;
+  
+  switch(type){
+    case "all":
+      result = db.query({});
+      cache.remove("meteodata");
+      break;
+    case "stations":
+      result = db.query({type:"station"});;
+      break;
+    case "data":
+      result = db.query({type:"data"});
+      cache.remove("meteodata");
+      break;
+  }    
+  
+  if(result && result.getSize()>0){
+    while(result.hasNext()){
+      current = result.next();
+      cache.remove(current.id);
+      db.remove(current);
+    }
+  }
+}
 
 /**
  * Do replacements to clean text
@@ -59,6 +90,53 @@ function dropDiacritics(str){
 }
 
 /**
+ * Get position from db or geocoder 
+ *
+ * @param {String} loc
+ * @param {String} st
+ *        station code
+ * @return {Array}
+ */
+function getCoords(loc, st){
+  var cached = cache.get(st);
+
+  if(cached!=null){
+    Logger.log("geo from cache");
+    return JSON.parse(cached);
+  }else{
+    var result = db.query({type:"station", id : st});
+    if(result.getSize()==1){
+      Logger.log("geo from db");
+      var geo = result.next().geo;
+      cache.put(st, JSON.stringify(geo));
+      return geo;
+    }else{    
+      loc = loc.toLowerCase();
+      var address = loc.replace(/\(.*\)/g,"").replace(/nord/g,"");
+      if(address.indexOf("-")>-1){
+        address = address.slice(address.indexOf("-")+1) + "," + address.slice(0,address.indexOf("-")-1);
+      }
+      var r = null;
+      if(isGeocodeAvailable){
+        try{
+          geocoder.geocode(address + ",Catalonia,Spain");
+        }catch(e){
+          isGeocodeAvailable = false;
+        }
+      }
+      if(r && r.results.length>0){
+        db.save({type:"station",id:st,geo:[r.results[0].geometry.location.lat,r.results[0].geometry.location.lng]});
+        Logger.log("geo from geocoder");
+        cache.put(st, JSON.stringify([r.results[0].geometry.location.lat,r.results[0].geometry.location.lng]));
+        return [r.results[0].geometry.location.lat,r.results[0].geometry.location.lng];
+      }else{
+        return ["-","-"];
+      }
+    }
+  }
+}  
+  
+/**
  * Fetch content with all the stations from meteo.cat and returns and caches a JSON object
  * This function is triggered by a cron from Google Apps Script
  *
@@ -82,24 +160,33 @@ function meteo(){
   data = data.slice(data.indexOf("<table"))
   data = getTagContent(data.slice(data.indexOf("<tbody")),false,"tbody");
       
-  var rows = data.split("<tr"), cols, e;
+  var rows = data.split("<tr"), cols, e, st, g;
   for(var i=1,z=rows.length;i<z;i++){
     cols = getTagContent(rows[i],false,"tr").split("<td");
     e = {};
-    e["locality"] = replaces(getTagContent(cols[1],false,"td"));
+    st = getTagContent(cols[1],false,"td");
+    e["locality"] = replaces(st);
+    st = st.split("<a");
+    if(st.length>0 && st[1].indexOf("[")>-1){
+      st = st[1].slice(st[1].indexOf("[")+1,st[1].lastIndexOf("]"));
+    }
     e["date"] = replaces(getTagContent(cols[4],false,"td"));
     e["tavg"] = replaces(getTagContent(cols[5],false,"td"));
     e["tmax"] = replaces(getTagContent(cols[6],false,"td"));
     e["tmin"] = replaces(getTagContent(cols[7],false,"td"));
     e["humidity"] = replaces(getTagContent(cols[8],false,"td"));
+    g = getCoords(e.locality, st);
+    e["geo"] = {};
+    e.geo["lat"] = g[0];
+    e.geo["lng"] = g[1];
     output.push(e);
   }   
   cache.put("meteodata", JSON.stringify(output));
-  var result = db.query({})
+  var result = db.query({type:"data"})
   while(result.hasNext()) {
     db.remove(result.next());
   }    
-  db.save({id:1,timestmp:(new Date()).getTime(),data:JSON.stringify(output)});
+  db.save({type:"data",timestmp:(new Date()).getTime(),data:JSON.stringify(output)});
   return output;
 }
 
@@ -114,7 +201,7 @@ function getData(){
 
   if(cached!=null){
     c=cached;
-    Logger.log("from cache");
+    Logger.log("data from cache");
   }else{
     var result = db.query({id:1});
     if(result.getSize()>0){
@@ -122,14 +209,14 @@ function getData(){
       if((((new Date()).getTime()-(new Date(current.timestmp)).getTime())/1000)<=ttl){
         c=current.data;
         cache.put("meteodata", c);
-        Logger.log("from db");
+        Logger.log("data from db");
       }else{
-        c=meteo();
-        Logger.log("from live");
+        c=JSON.stringify(meteo());
+        Logger.log("data from live");
       }
     }else{
-      c=meteo();
-      Logger.log("from live");
+      c=JSON.stringify(meteo());
+      Logger.log("data from live");
     }
   }
   return c;
@@ -143,7 +230,11 @@ function getData(){
  */
 function doGet(e) {
   var output = ContentService.createTextOutput();
-
+      
+  if(e && e.parameters && e.parameters.refresh && e.parameters.refresh!=""){
+    removeCachedData(e.parameters.refresh);
+  }
+  
   c = getData();
   
   var cb = "";

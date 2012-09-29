@@ -3,19 +3,32 @@
 <head>
 <meta charset=utf-8>
     <title>testing Google Apps Script meteocat</title>
+    <script src="https://maps.googleapis.com/maps/api/js?sensor=false"></script>
     <script>
-        function weather(results){
-            window.onload = function(){
-                var c = document.getElementsByTagName("body")[0]    
-                for(var i=0; i<results.length;i++){
-                    c.innerHTML += results[i].locality + ": " + results[i].tavg + " <sup>o</sup>C<br />";       
-                }
+      function weather(results){
+        window.onload = function(){
+            var myLatlng = new google.maps.LatLng(42.1,2.2);
+            var mapOptions = {
+              zoom: 8,
+              center: myLatlng,
+              mapTypeId: google.maps.MapTypeId.ROADMAP
+            }
+            var map = new google.maps.Map(document.getElementById('map_canvas'), mapOptions);
+
+            for(var i=0; i<results.length;i++){
+                console.log(results[i].geo.lat + " " +results[i].geo.lng)
+                var marker = new google.maps.Marker({
+                    position: new google.maps.LatLng(results[i].geo.lat,results[i].geo.lng),
+                    map: map,
+                    title: results[i].locality + ": " + results[i].tavg + " ºC"
+                });
             }
         }
+      }
     </script>
     <script src="https://script.google.com/macros/s/AKfycbz0cyNYyZzQ9thMCAiiTauTtrP58nVymAm8KWx8hhfCZ--yLiA/exec?callback=weather"></script>
 </head>
 <body>
-
+    <div id="map_canvas" style="width:500px;height:500px"></div>
 </body>
 </html>
