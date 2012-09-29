@@ -53,7 +53,7 @@ var dcache = {
         }
       }
     }
-    return typeof v=="object"?JSON.parse(v):v;
+    return typeof v=="string"?JSON.parse(v):v;
   },
   
  /**
