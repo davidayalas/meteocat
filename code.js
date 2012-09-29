@@ -196,7 +196,6 @@ function doGet(e) {
   if(e && e.parameters && e.parameters.refresh && e.parameters.refresh!=""){
     removeCachedData(e.parameters.refresh);
   }
-  
   //dcache.remove({id:"meteodata"})
   c = getData();
   

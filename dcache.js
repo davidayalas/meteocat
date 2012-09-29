@@ -41,7 +41,7 @@ var dcache = {
     var v=null;
     if(cached!=null){
       v=cached;
-      //Logger.log("data from cache");
+      Logger.log(key + " from cache");
     }else{
       var result = this.db.query({id:key});
       if(result.getSize()>0){
@@ -49,7 +49,7 @@ var dcache = {
         if(retrieveLast || current.ttl==undefined || (((new Date()).getTime()-(new Date(current.timestmp)).getTime())/1000)<=current.ttl){
           v=current.data;
           this.cache.put(key, v);
-          //Logger.log("data from db");
+          Logger.log(key + " from db");
         }
       }
     }
@@ -61,7 +61,6 @@ var dcache = {
   *
   */  
   remove : function(q){
-    Logger.log(">"+JSON.stringify(q))
     var r = this.db.query(q);
     if(r.getSize()>0){
       var c;
@@ -69,6 +68,7 @@ var dcache = {
         c = r.next();
         this.db.remove(c);
         this.cache.remove(c.id);
+        Logger.log("deleting "+c.id);
       }    
     }
   }
