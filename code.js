@@ -1,36 +1,23 @@
-var cache = CacheService.getPublicCache();
-var db = ScriptDb.getMyDb();
 var ttl = 900; //same as cron
 var geocoder = Maps.newGeocoder();
-var isGeocodeAvailable = true;
+var isGeocoderAvailable = true;
+
 /**
  * Remove all from cache and db
  *
  */
 function removeCachedData(type){
-  var result;
-  
   switch(type){
     case "all":
-      result = db.query({});
-      cache.remove("meteodata");
+      dcache.remove({});
       break;
     case "stations":
-      result = db.query({type:"station"});;
+      dcache.remove({type:'station'});
       break;
     case "data":
-      result = db.query({type:"data"});
-      cache.remove("meteodata");
+      dcache.remove({id:'meteodata'});
       break;
   }    
-  
-  if(result && result.getSize()>0){
-    while(result.hasNext()){
-      current = result.next();
-      cache.remove(current.id);
-      db.remove(current);
-    }
-  }
 }
 
 /**
@@ -98,40 +85,30 @@ function dropDiacritics(str){
  * @return {Array}
  */
 function getCoords(loc, st){
-  var cached = cache.get(st);
+  var cached = dcache.get(st);
 
   if(cached!=null){
-    Logger.log("geo from cache");
-    return JSON.parse(cached);
+    return cached;
   }else{
-    var result = db.query({type:"station", id : st});
-    if(result.getSize()==1){
-      Logger.log("geo from db");
-      var geo = result.next().geo;
-      cache.put(st, JSON.stringify(geo));
-      return geo;
-    }else{    
-      loc = loc.toLowerCase();
-      var address = loc.replace(/\(.*\)/g,"").replace(/nord/g,"");
-      if(address.indexOf("-")>-1){
-        address = address.slice(address.indexOf("-")+1) + "," + address.slice(0,address.indexOf("-")-1);
+    Logger.log("geo from geocoder");
+    loc = loc.toLowerCase();
+    var address = loc.replace(/\(.*\)/g,"").replace(/nord/g,"");
+    if(address.indexOf("-")>-1){
+      address = address.slice(address.indexOf("-")+1) + "," + address.slice(0,address.indexOf("-")-1);
+    }
+    var r = null;
+    if(isGeocoderAvailable){
+      try{
+        geocoder.geocode(address + ",Catalonia,Spain");
+      }catch(e){
+        isGeocoderAvailable = false;
       }
-      var r = null;
-      if(isGeocodeAvailable){
-        try{
-          geocoder.geocode(address + ",Catalonia,Spain");
-        }catch(e){
-          isGeocodeAvailable = false;
-        }
-      }
-      if(r && r.results.length>0){
-        db.save({type:"station",id:st,geo:[r.results[0].geometry.location.lat,r.results[0].geometry.location.lng]});
-        Logger.log("geo from geocoder");
-        cache.put(st, JSON.stringify([r.results[0].geometry.location.lat,r.results[0].geometry.location.lng]));
-        return [r.results[0].geometry.location.lat,r.results[0].geometry.location.lng];
-      }else{
-        return ["-","-"];
-      }
+    }
+    if(r && r.results.length>0){
+      dcache.put(st,{type:"station",geo:[r.results[0].geometry.location.lat,r.results[0].geometry.location.lng]});
+      return [r.results[0].geometry.location.lat,r.results[0].geometry.location.lng];
+    }else{
+      return ["-","-"];
     }
   }
 }  
@@ -144,19 +121,27 @@ function getCoords(loc, st){
  */
 function meteo(){
   var response = UrlFetchApp.fetch("http://www.meteo.cat/xema/AppJava/Mapper.do",{
-      'payload' : {
+    'payload' : {
         'inputSource':'SeleccioTotesEstacions', 
         'team':'ObservacioTeledeteccio'
       },
       'headers' : {
         'contentType' : 'text/html; charset=ISO-8859-1',
       },
-      'method' : 'post'
+      'method' : 'post',
+      'muteHttpExceptions' : true
   });
   
   var output = [];
   
   var data = response.getContentText("iso-8859-1");
+  
+  if(!data || data.length==0){
+    Logger.log("error in server response");
+    Logger.log("retrieving last cached data");
+    return dcache.get("meteodata",true);
+  }
+  
   data = data.slice(data.indexOf("<table"))
   data = getTagContent(data.slice(data.indexOf("<tbody")),false,"tbody");
       
@@ -181,43 +166,20 @@ function meteo(){
     e.geo["lng"] = g[1];
     output.push(e);
   }   
-  cache.put("meteodata", JSON.stringify(output));
-  var result = db.query({type:"data"})
-  while(result.hasNext()) {
-    db.remove(result.next());
-  }    
-  db.save({type:"data",timestmp:(new Date()).getTime(),data:JSON.stringify(output)});
-  return output;
+
+  dcache.put("meteodata", output, ttl);
+  return output;  
 }
 
 /**
- * Get data from cache, db or live
+ * Get data from cache or live
  *
  * @return {Object}
  */
 function getData(){
-  var cached = cache.get("meteodata");
-  var c;
-
-  if(cached!=null){
-    c=cached;
-    Logger.log("data from cache");
-  }else{
-    var result = db.query({id:1});
-    if(result.getSize()>0){
-      var current = result.next();
-      if((((new Date()).getTime()-(new Date(current.timestmp)).getTime())/1000)<=ttl){
-        c=current.data;
-        cache.put("meteodata", c);
-        Logger.log("data from db");
-      }else{
-        c=JSON.stringify(meteo());
-        Logger.log("data from live");
-      }
-    }else{
-      c=JSON.stringify(meteo());
-      Logger.log("data from live");
-    }
+  var c = dcache.get("meteodata");
+  if(!c){
+    c = meteo();
   }
   return c;
 }
@@ -235,6 +197,7 @@ function doGet(e) {
     removeCachedData(e.parameters.refresh);
   }
   
+  //dcache.remove({id:"meteodata"})
   c = getData();
   
   var cb = "";
@@ -247,7 +210,6 @@ function doGet(e) {
   //stations searching
   if(e && e.parameters && e.parameters.stations){
     var st = dropDiacritics(e.parameters.stations.toString().toLowerCase()).split(",");
-    c = JSON.parse(c);
     c = c.filter(function(it){
       found = false;
       for(var i=0,z=st.length;i<z;i++){
@@ -258,7 +220,10 @@ function doGet(e) {
       }
       return found;
     });
-    c=JSON.stringify(c);
+  }
+  
+  if(typeof c=="object"){
+    c = JSON.stringify(c);
   }
   
   return ContentService.createTextOutput(cb+c+(cb!=""?")":"")).setMimeType(ContentService.MimeType.JSON);;
