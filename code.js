@@ -207,7 +207,7 @@ function doGet(e) {
   }
 
   //stations searching
-  if(e && e.parameters && e.parameters.stations){
+  if(c && e && e.parameters && e.parameters.stations){
     var st = dropDiacritics(e.parameters.stations.toString().toLowerCase()).split(",");
     c = c.filter(function(it){
       found = false;
