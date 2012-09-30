@@ -88,7 +88,7 @@ function getCoords(loc, st){
   var cached = dcache.get(st);
 
   if(cached!=null){
-    return cached;
+    return cached.geo;
   }else{
     Logger.log("geo from geocoder");
     loc = loc.toLowerCase();
@@ -99,7 +99,7 @@ function getCoords(loc, st){
     var r = null;
     if(isGeocoderAvailable){
       try{
-        geocoder.geocode(address + ",Catalonia,Spain");
+        r=geocoder.geocode(address + ",Catalonia,Spain");
       }catch(e){
         isGeocoderAvailable = false;
       }
