@@ -45,6 +45,7 @@ var dcache = {
       var result = this.db.query({id:key});
       if(result.getSize()>0){
         var current = result.next();
+        if(current==null){return null;}
         if(retrieveLast || current.ttl==undefined || (((new Date()).getTime()-(new Date(current.timestmp)).getTime())/1000)<=current.ttl){
           v=current.data;
           this.cache.put(key, v);
