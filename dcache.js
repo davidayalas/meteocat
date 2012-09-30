@@ -18,7 +18,6 @@ var dcache = {
   put : function(key, value, ttl){
     this.remove({'id':key});
     value = typeof value=="object" ? JSON.stringify(value) : value;
-    Logger.log("put >>>" + value)
     if(ttl){
       this.cache.put(key,value,ttl);
       this.db.save({id:key,timestmp:(new Date()).getTime(),data:value,'ttl':ttl});
@@ -54,14 +53,19 @@ var dcache = {
       }
     }
     v = v==undefined || v=="undefined"?null:v;
-    return typeof v=="string"?JSON.parse(v):v;
+    return v && (v.indexOf("{")>-1 || v.indexOf("[")>-1)?JSON.parse(v):v;
   },
   
  /**
-  * Remove contents in cache from a query
+  * Remove contents in cache from a query or key
   *
   */  
   remove : function(q){
+    if(typeof(q)=="string"){
+      var a=q;
+      q={};
+      q["id"] = a;
+    }
     var r = this.db.query(q);
     if(r.getSize()>0){
       var c;
