@@ -7,6 +7,8 @@ Trying different aproaches to get the data from a free service:
 
 *	**Google Apps Script**: with a standalone service you can develop the business logic and the user interface (in this case a simple rest api)
 
+Finally, Google Apps Script was choosen.
+
 API
 ----
 
@@ -21,3 +23,4 @@ You can set this params:
 *	**stations**: list of values separated by comma (it performs a "contains" and with no accents nor diacritics)
 
 	http://script.google.com/macros/s/AKfycbz0cyNYyZzQ9thMCAiiTauTtrP58nVymAm8KWx8hhfCZ--yLiA/exec?callback=fn&stations=alcarras
+
