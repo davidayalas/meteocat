@@ -15,7 +15,7 @@ function removeCachedData(type){
       dcache.remove({type:'station'});
       break;
     case "data":
-      dcache.remove({id:'meteodata'});
+      dcache.remove('meteodata');
       break;
   }    
 }
