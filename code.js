@@ -86,8 +86,10 @@ function dropDiacritics(str){
  */
 function getCoords(loc, st){
   var cached = dcache.get(st);
-
-  if(cached!=null){
+  
+  if(cached && cached!=null){
+    Logger.log(typeof cached)
+    Logger.log(">>>"+cached.geo[0])
     return cached.geo;
   }else{
     Logger.log("geo from geocoder");
@@ -190,17 +192,17 @@ function getData(){
  * @param {Object} e (request)
  * @return {String}
  */
-function doGet(e) {   
+function doGet(e){ 
   var output = ContentService.createTextOutput();
       
   //force refresh data
   if(e && e.parameters && e.parameters.refresh && e.parameters.refresh!=""){
     removeCachedData(e.parameters.refresh);
   }
-  
-  //dcache.remove({id:"meteodata"})
+
+  //dcache.remove("meteodata")
   c = getData();
-  
+
   var cb = "";
   
   //callback management

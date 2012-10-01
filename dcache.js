@@ -49,7 +49,11 @@ var dcache = {
     }
 
     if(cached!=null){
-      v=cached.indexOf("{")>-1 || cached.indexOf("[")>-1?JSON.parse(cached):cached;
+      try{
+        v = JSON.parse(cached);
+      }catch(e){
+        v = cached;
+      }
       Logger.log(key + " from cache");
     }else{ //db key id
 
@@ -61,7 +65,7 @@ var dcache = {
           if(current==null){return null;}
           if(retrieveLast || current.ttl==undefined || (((new Date()).getTime()-(new Date(current.timestmp)).getTime())/1000)<=current.ttl){
             v=current.data;
-            this.cache.put(key, JSON.stringify(v));
+            this.cache.put(key, typeof(v)=="object"?JSON.stringify(v):v);
             Logger.log(key + " from db id");
           }
         }
