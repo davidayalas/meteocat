@@ -22,5 +22,5 @@ You can set this params:
 
 *	**stations**: list of values separated by comma (it performs a "contains" and with no accents nor diacritics)
 
-	http://script.google.com/macros/s/AKfycbz0cyNYyZzQ9thMCAiiTauTtrP58nVymAm8KWx8hhfCZ--yLiA/exec?callback=fn&stations=alcarras
+	http://script.google.com/macros/s/AKfycbz0cyNYyZzQ9thMCAiiTauTtrP58nVymAm8KWx8hhfCZ--yLiA/exec?callback=fn&stations=alcarras,barcelona
 
