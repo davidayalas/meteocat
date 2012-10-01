@@ -88,8 +88,6 @@ function getCoords(loc, st){
   var cached = dcache.get(st);
   
   if(cached && cached!=null){
-    Logger.log(typeof cached)
-    Logger.log(">>>"+cached.geo[0])
     return cached.geo;
   }else{
     Logger.log("geo from geocoder");
