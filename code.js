@@ -9,13 +9,13 @@ var isGeocoderAvailable = true;
 function removeCachedData(type){
   switch(type){
     case "all":
-      dcache.remove({});
+      gscache.remove({});
       break;
     case "stations":
-      dcache.remove({type:'station'});
+      gscache.remove({type:'station'});
       break;
     case "data":
-      dcache.remove('meteodata');
+      gscache.remove('meteodata');
       break;
   }    
 }
@@ -85,8 +85,7 @@ function dropDiacritics(str){
  * @return {Array}
  */
 function getCoords(loc, st){
-  var cached = dcache.get(st);
-  
+  var cached = gscache.get(st);
   if(cached && cached!=null){
     return cached.geo;
   }else{
@@ -104,8 +103,9 @@ function getCoords(loc, st){
         isGeocoderAvailable = false;
       }
     }
+    
     if(r && r.results.length>0){
-      dcache.put(st,{type:"station",geo:[r.results[0].geometry.location.lat,r.results[0].geometry.location.lng]});
+      gscache.put(st,{type:"station",geo:[r.results[0].geometry.location.lat,r.results[0].geometry.location.lng]});
       return [r.results[0].geometry.location.lat,r.results[0].geometry.location.lng];
     }else{
       return ["-","-"];
@@ -139,7 +139,7 @@ function meteo(){
   if(!data || data.length==0){
     Logger.log("error in server response");
     Logger.log("retrieving last cached data");
-    return dcache.get("meteodata",true);
+    return gscache.get("meteodata",true);
   }
   
   data = data.slice(data.indexOf("<table"))
@@ -162,12 +162,12 @@ function meteo(){
     e["humidity"] = replaces(getTagContent(cols[8],false,"td"));
     g = getCoords(e.locality, st);
     e["geo"] = {};
-    e.geo["lat"] = g[0];
-    e.geo["lng"] = g[1];
+    e.geo["lat"] = g && g[0]?g[0]:"-";
+    e.geo["lng"] = g && g[1]?g[1]:"-";
     output.push(e);
   }   
 
-  dcache.put("meteodata", output, ttl);
+  gscache.put("meteodata", output, ttl);
   return output;  
 }
 
@@ -177,7 +177,7 @@ function meteo(){
  * @return {Object}
  */
 function getData(){
-  var c = dcache.get("meteodata");
+  var c = gscache.get("meteodata");
   if(!c){
     c = meteo();
   }
@@ -185,7 +185,7 @@ function getData(){
 }
 
 /**
- *  The basic interface to a simple rest api over results
+ * The basic interface to a simple rest api over results
  *
  * @param {Object} e (request)
  * @return {String}
@@ -198,7 +198,6 @@ function doGet(e){
     removeCachedData(e.parameters.refresh);
   }
 
-  //dcache.remove("meteodata")
   c = getData();
 
   var cb = "";
@@ -207,7 +206,7 @@ function doGet(e){
   if(e && e.parameters && e.parameters.callback){
     cb = e.parameters.callback + "(";
   }
-
+  
   //stations searching
   if(c && e && e.parameters && e.parameters.stations){
     var st = dropDiacritics(e.parameters.stations.toString().toLowerCase()).split(",");
