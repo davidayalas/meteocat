@@ -7,6 +7,7 @@
 var gscache = {
   cache : CacheService.getPublicCache(),
   db : ScriptDb.getMyDb(),
+  keyprefix : "gscache_",
   
  /**
   * Sets a key
@@ -20,6 +21,7 @@ var gscache = {
       Logger.log("key has to be a string");
       return;
     }
+    key = this.keyprefix + key;
     this.remove(key);
     var valuec = typeof value=="object" ? JSON.stringify(value) : value;
     if(ttl){
@@ -35,7 +37,7 @@ var gscache = {
   * Gets a key
   *
   * @param {String, Object} key
-  *        Query by id has to be string.
+  *        Query by id has to be string
   * @param {Boolean} retrieveLast
   *        to force the return of last value           
   * @return {Object,String,Iterator}
@@ -44,18 +46,18 @@ var gscache = {
     var v=null, cached=null;
 
     if(typeof(key)=="string" || !isNaN(key)){
-      key = ""+key;
+      key = this.keyprefix + key;
     }
 
     cached = this.cache.get(key);
     
     if(cached!=null){
       v = cached;
+      Logger.log(key.replace(this.keyprefix,"") + " from cache");
     }else{ //db key id
       var result = null;
       if(typeof(key)=="string"){
         result = this.db.query({id:key});
-        Logger.log(result.getSize() + " " + key)
         if(result.getSize()>0){
           var current = result.next();
           if(current==null){return null;}
@@ -63,7 +65,7 @@ var gscache = {
             v=current.data;
             v = typeof(v)=="object"?v.toJson():v;
             this.cache.put(key, typeof(v)=="object"?JSON.stringify(v):v);
-            Logger.log(key + " from db id");
+            Logger.log(key.replace(this.keyprefix,"") + " from db id");
           }
         }
       }else{ //query
@@ -89,7 +91,7 @@ var gscache = {
     if(typeof(q)=="string"){
       var a=q;
       q={};
-      q["id"] = a;
+      q["id"] = this.keyprefix + a;
     }else{
       q = {data:q};
     }
@@ -100,7 +102,7 @@ var gscache = {
         c = r.next();
         this.db.remove(c);
         this.cache.remove(c.id);
-        Logger.log("deleting "+c.id);
+        Logger.log("deleting "+c.id.replace(this.keyprefix,""));
       }    
     }
   }
