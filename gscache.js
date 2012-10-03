@@ -21,8 +21,8 @@ var gscache = {
       Logger.log("key has to be a string");
       return;
     }
-    key = this.keyprefix + key;
     this.remove(key);
+    key = this.keyprefix + key;
     var valuec = typeof value=="object" ? JSON.stringify(value) : value;
     if(ttl){
       this.cache.put(key,valuec,ttl);
@@ -37,7 +37,7 @@ var gscache = {
   * Gets a key
   *
   * @param {String, Object} key
-  *        Query by id has to be string
+  *        Query by id has to be string.
   * @param {Boolean} retrieveLast
   *        to force the return of last value           
   * @return {Object,String,Iterator}
@@ -86,6 +86,8 @@ var gscache = {
  /**
   * Remove contents in cache from a query or key
   * Query by id has to be string.
+  *
+  * @param {String, Object} q
   */  
   remove : function(q){
     if(typeof(q)=="string"){
@@ -95,6 +97,7 @@ var gscache = {
     }else{
       q = {data:q};
     }
+    Logger.log(q)
     var r = this.db.query(q);
     if(r.getSize()>0){
       var c;
