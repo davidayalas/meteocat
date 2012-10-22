@@ -171,7 +171,7 @@ function meteo(){
     output.push(e);
   }   
 
-  gscache.put("meteodata", output, ttl);
+  gscache.put("meteodata", output);
   return output;  
 }
 
@@ -191,8 +191,6 @@ function doGet(e){
 
   c = gscache.get("meteodata"); //always has to be cached. always serving with no delay of processing meteo() --> cron
 
-  Logger.log(c)
-  
   //callback management
   var cb = "";
   if(e && e.parameters && e.parameters.callback){
