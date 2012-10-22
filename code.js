@@ -10,14 +10,18 @@ function removeCachedData(type){
   switch(type){
     case "all":
       gscache.remove({});
+      meteo();
       break;
     case "stations":
       gscache.remove({type:'station'});
+      meteo();
       break;
     case "data":
+      Logger.log("remove")
       gscache.remove('meteodata');
+      meteo();
       break;
-  }    
+  }
 }
 
 /**
@@ -120,7 +124,7 @@ function getCoords(loc, st){
  * @return {Object}
  */
 function meteo(){
-  var response = UrlFetchApp.fetch("http://www.meteo.cat/xema/AppJava/Mapper.do",{
+  var response = UrlFetchApp.fetch("http://www.meteo.cat/xema/AppJava/Mapper.do",{    
     'payload' : {
         'inputSource':'SeleccioTotesEstacions', 
         'team':'ObservacioTeledeteccio'
@@ -172,19 +176,6 @@ function meteo(){
 }
 
 /**
- * Get data from cache or live
- *
- * @return {Object}
- */
-function getData(){
-  var c = gscache.get("meteodata");
-  if(!c){
-    c = meteo();
-  }
-  return c;
-}
-
-/**
  * The basic interface to a simple rest api over results
  *
  * @param {Object} e (request)
@@ -192,17 +183,18 @@ function getData(){
  */
 function doGet(e){ 
   var output = ContentService.createTextOutput();
-      
+  
   //force refresh data
   if(e && e.parameters && e.parameters.refresh && e.parameters.refresh!=""){
     removeCachedData(e.parameters.refresh);
   }
 
-  c = getData();
+  c = gscache.get("meteodata"); //always has to be cached. always serving with no delay of processing meteo() --> cron
 
-  var cb = "";
+  Logger.log(c)
   
   //callback management
+  var cb = "";
   if(e && e.parameters && e.parameters.callback){
     cb = e.parameters.callback + "(";
   }
@@ -225,6 +217,6 @@ function doGet(e){
   if(typeof c=="object"){
     c = JSON.stringify(c);
   }
-  
+
   return ContentService.createTextOutput(cb+c+(cb!=""?")":"")).setMimeType(ContentService.MimeType.JSON);;
-}
+}  
