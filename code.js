@@ -1,4 +1,3 @@
-var ttl = 900; //same as cron
 var geocoder = Maps.newGeocoder();
 var isGeocoderAvailable = true;
 
@@ -84,13 +83,14 @@ function dropDiacritics(str){
  * Get position from db or geocoder 
  *
  * @param {String} loc
+ * @param {Array} current meteodata
  * @param {String} st
  *        station code
  * @return {Array}
  */
-function getCoords(loc, st){
-  var cached = gscache.get(st);
-  if(cached && cached!=null){
+function getCoords(loc, data, st){
+  var cached = searchStations(data, st);
+  if(cached.length>0 && cached[0].geo.lat!=="-"){
     return cached.geo;
   }else{
     Logger.log("geo from geocoder");
@@ -109,14 +109,36 @@ function getCoords(loc, st){
     }
     
     if(r && r.results.length>0){
-      gscache.put(st,{type:"station",geo:[r.results[0].geometry.location.lat,r.results[0].geometry.location.lng]});
+      //gscache.put(st,{type:"station",geo:[r.results[0].geometry.location.lat,r.results[0].geometry.location.lng]});
       return [r.results[0].geometry.location.lat,r.results[0].geometry.location.lng];
     }else{
       return ["-","-"];
     }
   }
 }  
-  
+
+/**
+ * Searches station in full json data 
+ * @param {Object} data - JSON
+ * @param {String} st
+ *        station code
+ * @return {Array}
+ */
+function searchStations(data, st){
+    st = dropDiacritics(st.toString().toLowerCase()).split(",");
+    data = data.filter(function(it){
+      found = false;
+      for(var i=0,z=st.length;i<z;i++){
+        if(dropDiacritics(it.locality.toLowerCase()).indexOf(st[i])>-1){
+          found = true;
+          break;
+        }  
+      }
+      return found;
+    });
+    return data;
+}
+
 /**
  * Fetch content with all the stations from meteo.cat and returns and caches a JSON object
  * This function is triggered by a cron from Google Apps Script
@@ -137,7 +159,7 @@ function meteo(){
   });
   
   var output = [];
-  
+  var current_meteodata = gscache.get("meteodata");
   var data = response.getContentText("iso-8859-1");
   
   if(!data || data.length==0){
@@ -150,6 +172,8 @@ function meteo(){
   data = getTagContent(data.slice(data.indexOf("<tbody")),false,"tbody");
       
   var rows = data.split("<tr"), cols, e, st, g;
+  Logger.log(rows.length)
+  //return
   for(var i=1,z=rows.length;i<z;i++){
     cols = getTagContent(rows[i],false,"tr").split("<td");
     e = {};
@@ -164,7 +188,7 @@ function meteo(){
     e["tmax"] = replaces(getTagContent(cols[6],false,"td"));
     e["tmin"] = replaces(getTagContent(cols[7],false,"td"));
     e["humidity"] = replaces(getTagContent(cols[8],false,"td"));
-    g = getCoords(e.locality, st);
+    g = getCoords(e.locality, current_meteodata, st);
     e["geo"] = {};
     e.geo["lat"] = g && g[0]?g[0]:"-";
     e.geo["lng"] = g && g[1]?g[1]:"-";
@@ -196,25 +220,16 @@ function doGet(e){
   if(e && e.parameters && e.parameters.callback){
     cb = e.parameters.callback + "(";
   }
-  
+
   //stations searching
   if(c && e && e.parameters && e.parameters.stations){
-    var st = dropDiacritics(e.parameters.stations.toString().toLowerCase()).split(",");
-    c = c.filter(function(it){
-      found = false;
-      for(var i=0,z=st.length;i<z;i++){
-        if(dropDiacritics(it.locality.toLowerCase()).indexOf(st[i])>-1){
-          found = true;
-          break;
-        }  
-      }
-      return found;
-    });
+    c = searchStations(c, e.parameters.stations);
   }
   
   if(typeof c=="object"){
     c = JSON.stringify(c);
   }
 
-  return ContentService.createTextOutput(cb+c+(cb!=""?")":"")).setMimeType(ContentService.MimeType.JSON);;
+  return ContentService.createTextOutput(cb+c+(cb!=""?")":"")).setMimeType(ContentService.MimeType.JAVASCRIPT);;
 }  
+
